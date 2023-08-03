@@ -287,47 +287,33 @@ router.get("/:user_id/progress", [verifyToken], async (req, res) => {
 });
 
 router.get("/getUsersByStudy/:study_id", async (req, res) => {
-  const study_id = req.params.study_id;
-  UserStudy.find({ study: study_id }, (err, userStudies) => {
+  // Busca en la colección de 'metrics'
+  Metrics.find({}, (err, metrics) => {
     if (err) {
       return res.status(404).json({
         ok: false,
         err,
       });
     }
-    let userIds = userStudies.map(userStudy => userStudy.user);
-    User.find({ _id: { $in: userIds } }, { password: 0 }, (err, users) => {
-      if (err) {
-        return res.status(404).json({
-          ok: false,
-          err,
-        });
-      }
-      const formattedUsers = users.map(user => {
-        console.log(user)
-        return {
-          _id: user._id,
-          names: user.names
-        };
-      });
-      res.status(200).json({ users: formattedUsers });
-    }).populate({ path: 'role', model: Role });
+    // Aquí asumo que metrics tiene una propiedad 'userId' ya que no especificaste la estructura del documento en 'metrics'
+    let userIds = [...new Set(metrics.map(metric => metric.userId))];
+
+    // Formateamos los userIds a un objeto para mantener la consistencia con tu código anterior.
+    const formattedUsers = userIds.map(userId => {
+      return {
+        _id: userId,
+        names: userId
+      };
+    });
+
+    // No necesitamos buscar en la colección 'User' ni hacer populate, así que lo eliminamos
+    res.status(200).json({ users: formattedUsers });
   });
 });
 
 router.get("/getMetricsByStudy/:study_id", async (req, res) => {
-  const study_id = req.params.study_id;
-
   try {
-    const users = await User.find({ study: study_id });
-
-    if (!users.length) {
-      return res.status(404).json({ status: 404, message: "Users not found" });
-    }
-
-    const userIds = users.map(user => user._id);
-
-    const metrics = await Metrics.find({ userId: { $in: userIds } });
+    const metrics = await Metrics.find({});
 
     if (!metrics.length) {
       return res.status(404).json({ status: 404, message: "Metrics not found" });
